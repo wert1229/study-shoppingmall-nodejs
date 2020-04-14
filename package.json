@@ -1,0 +1,21 @@
+{
+  "name": "camp16",
+  "version": "1.0.0",
+  "description": "쇼핑몰",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon -e js,html app.js",
+    "dev": "npx nodemon -e js,html app.js"
+  },
+  "author": "kd park",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "moment": "^2.24.0",
+    "morgan": "^1.10.0",
+    "mysql2": "^2.1.0",
+    "nunjucks": "^3.2.1",
+    "sequelize": "^4.42.0"
+  }
+}
