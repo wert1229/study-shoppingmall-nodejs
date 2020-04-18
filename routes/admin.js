@@ -2,56 +2,134 @@ const express = require('express');
 const router = express.Router();
 const models = require('../models');
 
+//csurf
+const csrf = require('csurf');
+const csrfProtection = csrf({ cookie: true });
+
+//이미지 저장되는 위치 설정
+const path = require('path');
+const uploadDir = path.join( __dirname , '../uploads' ); // 루트의 uploads위치에 저장한다.
+const fs = require('fs');
+
+//multer 셋팅
+const multer  = require('multer');
+const storage = multer.diskStorage({
+    destination :  (req, file, callback) => { //이미지가 저장되는 도착지 지정
+        callback(null, uploadDir );
+    },
+    filename :  (req, file, callback) => { // products-날짜.jpg(png) 저장 
+        callback(null, 'products-' + Date.now() + '.'+ file.mimetype.split('/')[1] );
+    }
+});
+const upload = multer({ storage: storage });
+
 router.get('/', (_,res) => {
     res.send('admin app');
 });
 
-router.get( '/products' , (_, res) => {
-    models.Products.findAll({
+router.get( '/products' , async (_, res) => {
+    const products = await models.Products.findAll();
 
-    }).then((products) => {
-        // DB에서 받은 products를 products변수명으로 내보냄
-        res.render( 'admin/products.html', { products : products });
+    res.render( 'admin/products.html', { products : products });
+});
+
+router.get('/products/detail/:id' , async (req, res) => {
+    const product = await models.Products.findOne({
+        where : {
+            id : req.params.id
+        },
+        include : [
+            'Memo'
+        ]
     });
+
+    res.render('admin/detail.html', { product: product });
 });
 
-router.get('/products/detail/:id' , (req, res) => {
-    models.Products.findByPk(req.params.id).then( (product) => {
-        res.render('admin/detail.html', { product: product });  
-    });
+router.get('/products/write', csrfProtection, (req, res) => {
+    res.render('admin/form.html', { csrfToken : req.csrfToken() });
 });
 
-router.get('/products/write', (_, res) => {
-    res.render('admin/form.html');
-});
+router.post('/products/write', upload.single('thumbnail'), csrfProtection, async (req, res) => {
+    try { 
+        req.body.thumbnail = (req.file) ? req.file.filename : "";
+        await models.Products.create(req.body);
 
-router.post('/products/write' , (req, res) => {
-    models.Products.create(req.body).then( () => {
         res.redirect('/admin/products');
-    });
+    } catch(e) {
+
+    }
 });
 
-router.get('/products/edit/:id' , (req, res) => {
+router.get('/products/edit/:id' , csrfProtection, async (req, res) => {
     //기존에 폼에 value안에 값을 셋팅하기 위해 만든다.
-    models.Products.findByPk(req.params.id).then( function(product){
-        res.render('admin/form.html', { product : product });
-    });
+    const product = await models.Products.findByPk(req.params.id);
+
+    res.render('admin/form.html', { product: product, csrfToken: req.csrfToken() });
 });
 
-router.post('/products/edit/:id' , (req, res) => {
-
-    models.Products.update(
-        {
-            name : req.body.name,
-            price : req.body.price ,
-            description : req.body.description
-        }, 
-        { 
-            where : { id: req.params.id } 
+router.post('/products/edit/:id' , upload.single('thumbnail'), csrfProtection, async (req, res) => {
+    try {
+        const product = await models.Products.findByPk(req.params.id);
+        
+        if(req.file && product.thumbnail) {  //요청중에 파일이 존재 할시 이전이미지 지운다.
+            fs.unlinkSync( uploadDir + '/' + product.thumbnail );
         }
-    ).then( () => {
+
+        req.body.thumbnail = (req.file) ? req.file.filename : product.thumbnail;
+        await models.Products.update(
+            {
+                name : req.body.name,
+                price : req.body.price,
+                thumbnail : req.body.thumbnail,
+                description : req.body.description
+            }, 
+            { 
+                where : { id: req.params.id } 
+            }
+        );
+
         res.redirect('/admin/products/detail/' + req.params.id );
+    } catch(e) {
+
+    }
+});
+
+router.get('/products/delete/:id', async (req, res) => {
+    await models.Products.destroy({
+        where: {
+            id: req.params.id
+        }
     });
+
+    res.redirect('/admin/products');
+});
+
+router.post('/products/detail/:id' , async(req, res) => {
+    try{
+        const product = await models.Products.findByPk(req.params.id);
+        // create + as에 적은 내용 ( Products.js association 에서 적은 내용 )
+        await product.createMemo(req.body);
+        res.redirect('/admin/products/detail/' + req.params.id);  
+    }catch(e){
+        console.log(e)
+    }
+});
+
+router.get('/products/delete/:product_id/:memo_id', async(req, res) => {
+
+    try{
+
+        await models.ProductsMemo.destroy({
+            where: {
+                id: req.params.memo_id
+            }
+        });
+        res.redirect('/admin/products/detail/' + req.params.product_id );
+
+    }catch(e){
+
+    }
 
 });
 
