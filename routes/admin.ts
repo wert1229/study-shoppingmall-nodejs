@@ -1,29 +1,32 @@
-const express = require('express');
+import express from 'express';
+import csurf from 'csurf';
+import path from 'path';
+import fs from 'fs';
+import multer from 'multer';
+
+import models from '../models';
+
 const router = express.Router();
-const models = require('../models');
 
 //csurf
-const csrf = require('csurf');
-const csrfProtection = csrf({ cookie: true });
+const csurfProtection = csurf({ cookie: true });
 
 //이미지 저장되는 위치 설정
-const path = require('path');
-const uploadDir = path.join( __dirname , '../uploads' ); // 루트의 uploads위치에 저장한다.
-const fs = require('fs');
+const uploadDir = path.join(__dirname, '../uploads'); // 루트의 uploads위치에 저장한다.
 
 //multer 셋팅
-const multer  = require('multer');
 const storage = multer.diskStorage({
-    destination :  (req, file, callback) => { //이미지가 저장되는 도착지 지정
+    destination: (req, file, callback) => { //이미지가 저장되는 도착지 지정
         callback(null, uploadDir );
     },
-    filename :  (req, file, callback) => { // products-날짜.jpg(png) 저장 
+    filename: (req, file, callback) => { // products-날짜.jpg(png) 저장
         callback(null, 'products-' + Date.now() + '.'+ file.mimetype.split('/')[1] );
     }
 });
+
 const upload = multer({ storage: storage });
 
-router.get('/', (_,res) => {
+router.get('/', (_, res) => {
     res.send('admin app');
 });
 
@@ -38,19 +41,20 @@ router.get('/products/detail/:id' , async (req, res) => {
         where : {
             id : req.params.id
         },
-        include : [
-            'Memo'
-        ]
+        include : [{
+           model: models.ProductsMemo,
+           as: 'Memo'
+        }]
     });
 
     res.render('admin/detail.html', { product: product });
 });
 
-router.get('/products/write', csrfProtection, (req, res) => {
+router.get('/products/write', csurfProtection, (req, res) => {
     res.render('admin/form.html', { csrfToken : req.csrfToken() });
 });
 
-router.post('/products/write', upload.single('thumbnail'), csrfProtection, async (req, res) => {
+router.post('/products/write', upload.single('thumbnail'), csurfProtection, async (req, res) => {
     try { 
         req.body.thumbnail = (req.file) ? req.file.filename : "";
         await models.Products.create(req.body);
@@ -61,14 +65,14 @@ router.post('/products/write', upload.single('thumbnail'), csrfProtection, async
     }
 });
 
-router.get('/products/edit/:id' , csrfProtection, async (req, res) => {
+router.get('/products/edit/:id' , csurfProtection, async (req, res) => {
     //기존에 폼에 value안에 값을 셋팅하기 위해 만든다.
     const product = await models.Products.findByPk(req.params.id);
 
     res.render('admin/form.html', { product: product, csrfToken: req.csrfToken() });
 });
 
-router.post('/products/edit/:id' , upload.single('thumbnail'), csrfProtection, async (req, res) => {
+router.post('/products/edit/:id' , upload.single('thumbnail'), csurfProtection, async (req, res) => {
     try {
         const product = await models.Products.findByPk(req.params.id);
         
@@ -133,4 +137,4 @@ router.get('/products/delete/:product_id/:memo_id', async(req, res) => {
 
 });
 
-module.exports = router;
+export default router;

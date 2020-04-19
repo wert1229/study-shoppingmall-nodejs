@@ -1,21 +1,20 @@
-const express = require('express');
-const nunjucks = require('nunjucks');
-const logger = require('morgan');
-const bodyParser = require('body-parser');
-const cookieParser = require('cookie-parser');
+import express from 'express';
+import nunjucks from 'nunjucks';
+import morgan from 'morgan';
+import bodyParser from 'body-parser';
+import cookieParser from 'cookie-parser';
 
-//flash  메시지 관련
-const flash = require('connect-flash');
- 
-//passport 로그인 관련
-const passport = require('passport');
-const session = require('express-session');
+import passport from 'passport';
+import expressSession from 'express-session';
+import connectFlash from 'connect-flash';
 
-const admin = require('./routes/admin');
-const account = require('./routes/account');
+import admin from './routes/admin';  
+import account from './routes/account';
+
+import { sequelize } from './models';
 
 const app = express();
-const port = 3000;
+const port: number = 3000;
 
 nunjucks.configure('template', {
     autoescape: true,
@@ -23,7 +22,7 @@ nunjucks.configure('template', {
 });
 
 // 미들웨어 셋팅
-app.use(logger('dev'));
+app.use(morgan('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -32,14 +31,12 @@ app.use('/uploads', express.static('uploads'));
 // Routing
 app.use('/admin', admin);
 app.use('/account', account);
-// db 관련
-const db = require('./models');
 
 // DB authentication
-db.sequelize.authenticate()
+sequelize.authenticate()
 .then(() => {
     console.log('Connection has been established successfully.');
-    return db.sequelize.sync();
+    return sequelize.sync();
 })
 .then(() => {
     console.log('DB Sync complete.');

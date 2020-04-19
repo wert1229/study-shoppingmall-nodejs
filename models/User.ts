@@ -1,7 +1,21 @@
-const passwordHash = require('../helpers/passwordHash');
+import Sequelize from 'sequelize';
+import passwordHash from '../helpers/passwordHash';
 
-module.exports = function(sequelize, DataTypes){
-    const User = sequelize.define('User',
+interface IUserAttributes {
+    id?: number;              // id is an auto-generated UUID
+    username: string;
+    password: string;   
+    displayname: string;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+interface IUserInstance extends Sequelize.Instance<IUserAttributes>, IUserAttributes {}
+
+interface IUserModel extends Sequelize.Model<IUserInstance, IUserAttributes> {}
+
+export default (sequelize: Sequelize.Sequelize, DataTypes: Sequelize.DataTypes) => {
+    const User: IUserModel = sequelize.define<IUserInstance, IUserAttributes>('User',
         {
             id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
             username : { 
@@ -26,7 +40,7 @@ module.exports = function(sequelize, DataTypes){
             tableName: 'User'
         }
     );
-
+        
     User.beforeCreate((user, _) => {
         user.password = passwordHash(user.password);
     });

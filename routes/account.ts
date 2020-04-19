@@ -1,6 +1,8 @@
-const express = require('express');
+import * as express from 'express';
+
+import models from '../models';
+
 const router = express.Router();
-const models = require('../models');
 
 router.get('/', ( _ , res) => {
     res.send('account app');
@@ -25,4 +27,4 @@ router.get('/login', ( _ , res) => {
     res.render('account/login.html');
 });
 
-module.exports = router;
+export default router;
