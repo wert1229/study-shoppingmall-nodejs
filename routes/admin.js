@@ -6,6 +6,9 @@ const models = require('../models');
 const csrf = require('csurf');
 const csrfProtection = csrf({ cookie: true });
 
+//sharp
+const sharp = require('sharp');
+
 //이미지 저장되는 위치 설정
 const path = require('path');
 const uploadDir = path.join( __dirname , '../uploads' ); // 루트의 uploads위치에 저장한다.
@@ -23,6 +26,19 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
+// Thumbnail
+const makeThumbNail = (req, res, next) => {
+    sharp(req.file.path)
+        .resize(50, 50)
+        .jpeg({quality: 50})
+        .toFile(
+            path.join(req.file.destination, '/thumb/', req.file.filename)
+        );
+
+    next();
+}
+
+// Route from here
 router.get('/', (_,res) => {
     res.send('admin app');
 });
@@ -50,9 +66,10 @@ router.get('/products/write', csrfProtection, (req, res) => {
     res.render('admin/form.html', { csrfToken : req.csrfToken() });
 });
 
-router.post('/products/write', upload.single('thumbnail'), csrfProtection, async (req, res) => {
+router.post('/products/write', upload.single('thumbnail'), makeThumbNail, csrfProtection, async (req, res) => {
     try { 
         req.body.thumbnail = (req.file) ? req.file.filename : "";
+
         await models.Products.create(req.body);
 
         res.redirect('/admin/products');
@@ -68,12 +85,13 @@ router.get('/products/edit/:id' , csrfProtection, async (req, res) => {
     res.render('admin/form.html', { product: product, csrfToken: req.csrfToken() });
 });
 
-router.post('/products/edit/:id' , upload.single('thumbnail'), csrfProtection, async (req, res) => {
+router.post('/products/edit/:id' , upload.single('thumbnail'), makeThumbNail, csrfProtection, async (req, res) => {
     try {
         const product = await models.Products.findByPk(req.params.id);
         
         if(req.file && product.thumbnail) {  //요청중에 파일이 존재 할시 이전이미지 지운다.
             fs.unlinkSync( uploadDir + '/' + product.thumbnail );
+            fs.unlinkSync( uploadDir + '/thumb/' + product.thumbnail );
         }
 
         req.body.thumbnail = (req.file) ? req.file.filename : product.thumbnail;

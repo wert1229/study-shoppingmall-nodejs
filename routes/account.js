@@ -12,10 +12,18 @@ router.get('/join', ( _ , res) => {
 
 router.post('/join', async(req, res) => {
     try{
-        console.log(req.body);
-        await models.User.create(req.body);
-        res.send('<script>alert("회원가입 성공");location.href="/account/login";</script>');
-
+        const user = await models.User.findOne({
+            where : {
+                username : req.body.username
+            }
+        });
+        
+        if (user) {
+            res.send('<script>alert("아이디 중복");location.href="/account/join";</script>');
+        } else {
+            await models.User.create(req.body);
+            res.send('<script>alert("회원가입 성공");location.href="/account/login";</script>');
+        }
     }catch(e){
 
     }
