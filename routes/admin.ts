@@ -3,8 +3,10 @@ import csurf from 'csurf';
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
+import paginate from 'express-paginate';
 
 import models from '../models';
+import loginRequired from '../helpers/loginRequired';
 
 const router = express.Router();
 
@@ -30,10 +32,32 @@ router.get('/', (_, res) => {
     res.send('admin app');
 });
 
-router.get( '/products' , async (_, res) => {
-    const products = await models.Products.findAll();
+router.get('/products' , paginate.middleware(3, 50), async (req, res) => {
 
-    res.render( 'admin/products.html', { products : products });
+    const limit = +req.query.limit;
+    const page = +req.query.page;
+
+    const [ products, totalCount ] = await Promise.all([
+
+        models.Products.findAll({
+            include : [
+                {
+                    model : models.User ,
+                    as : 'Owner',
+                    attributes : [ 'username' , 'displayname' ]
+                },
+            ],
+            limit : limit,
+            offset : req.offset
+        }),
+    
+        models.Products.count()
+    ]);
+
+    const pageCount = Math.ceil( totalCount / limit );
+    const pages = paginate.getArrayPages(req)( 4 , pageCount, page);
+
+    res.render( 'admin/products.html' , { products , pages , pageCount });
 });
 
 router.get('/products/detail/:id' , async (req, res) => {
@@ -50,15 +74,17 @@ router.get('/products/detail/:id' , async (req, res) => {
     res.render('admin/detail.html', { product: product });
 });
 
-router.get('/products/write', csurfProtection, (req, res) => {
+router.get('/products/write', loginRequired, csurfProtection, (req, res) => {
     res.render('admin/form.html', { csrfToken : req.csrfToken() });
 });
 
-router.post('/products/write', upload.single('thumbnail'), csurfProtection, async (req, res) => {
+router.post('/products/write', loginRequired, upload.single('thumbnail'), csurfProtection, async (req, res) => {
     try { 
         req.body.thumbnail = (req.file) ? req.file.filename : "";
-        await models.Products.create(req.body);
 
+        const user = await models.User.findByPk(req.user?.id);
+        await user.createProduct(req.body);
+        
         res.redirect('/admin/products');
     } catch(e) {
 

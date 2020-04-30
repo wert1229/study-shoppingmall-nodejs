@@ -1,5 +1,6 @@
 import Sequelize from 'sequelize';
 import passwordHash from '../helpers/passwordHash';
+import Products from './Products';
 
 interface IUserAttributes {
     id?: number;              // id is an auto-generated UUID
@@ -41,6 +42,15 @@ export default (sequelize: Sequelize.Sequelize, DataTypes: Sequelize.DataTypes) 
         }
     );
         
+    User.associate = (models) => {
+        User.hasMany(models.Products, {
+            as: 'Product',
+            foreignKey: 'user_id',
+            sourceKey: 'id',
+            onDelete: 'CASCADE'
+        });
+    };
+
     User.beforeCreate((user, _) => {
         user.password = passwordHash(user.password);
     });

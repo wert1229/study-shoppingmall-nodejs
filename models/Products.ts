@@ -41,6 +41,8 @@ export default (sequelize: Sequelize.Sequelize, DataTypes: Sequelize.DataTypes) 
             sourceKey: 'id',
             onDelete: 'CASCADE'
         });
+
+        Products.belongsTo(models.User, { as :'Owner',  foreignKey: 'user_id', targetKey: 'id'});
     };
 
     Products.prototype!.dateFormat = (date) => (
