@@ -19,7 +19,12 @@ module.exports = function(sequelize, DataTypes){
             status: { type: DataTypes.STRING }, //결재완료, 배송중 등등
             song_jang: { type: DataTypes.STRING }, //송장번호
         }, {
-            tableName: 'Checkout'
+            tableName: 'Checkout',
+            getterMethods: {
+                numberFormat() {
+                    return new Intl.NumberFormat().format(this.paid_amount);
+                }
+            }
         }
     );
 

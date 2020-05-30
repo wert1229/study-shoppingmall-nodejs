@@ -67,13 +67,27 @@ exports.post_write = async (req, res) => {
     }
 };
 
-exports.get_edit = async (req, res) => {
-    //기존에 폼에 value안에 값을 셋팅하기 위해 만든다.
-    const product = await models.Products.findByPk(req.params.id);
+exports.get_edit = async(req, res) => {
 
-    res.render('admin/form.html', { product: product, csrfToken: req.csrfToken() });
-};
+    try{
+        const product = await models.Products.findOne({
+            where : { id : req.params.id},
+            include : [ 
+                { model : models.Tag, as : 'Tag' }
+            ],
+            order: [
+                [ 'Tag', 'createdAt', 'desc' ]
+            ]
+        });
 
+        res.render('admin/form.html', { product , csrfToken : req.csrfToken() });  
+
+    }catch(e){
+
+    }
+
+    
+}
 exports.post_edit = async (req, res) => {
     try {
         const product = await models.Products.findByPk(req.params.id);
@@ -139,3 +153,98 @@ exports.get_delete_memo = async (req, res) => {
 exports.post_summernote = (req, res) => {
     res.send('/uploads/' + req.file.filename);
 };
+
+exports.get_order = async (req, res) => {
+    try{
+        const checkouts = await models.Checkout.findAll();
+        res.render( 'admin/order.html' , { checkouts });
+    }catch(e){
+        console.log(e);
+    }
+}
+
+exports.get_order_edit = async (req, res) => {
+    try{
+        const checkout = await models.Checkout.findByPk(req.params.id);
+        res.render( 'admin/order_edit.html' , { checkout });
+    }catch(e){
+        console.log(e);
+    }
+}
+
+exports.post_order_edit = async(req,res) => {
+    try{
+
+        await models.Checkout.update(
+            req.body , 
+            { 
+                where : { id: req.params.id } 
+            }
+        );
+
+        res.redirect('/admin/order');
+
+    }catch(e){
+
+    }
+}
+
+exports.statistics = async (_,res) => {
+    try {
+        const barData = await models.Checkout.findAll({
+            attributes: [
+                [models.sequelize.literal('date_format( createdAt, "%Y-%m-%d")'), 'date'],
+                [models.sequelize.fn('count', models.sequelize.col('id')), 'cnt']
+            ],
+            group: ['date']
+        });
+
+        const pidData = await models.Checkout.findAll({
+            attributes: [
+                'status',
+                [models.sequelize.fn('count', models.sequelize.col('id')), 'cnt'],
+            ],
+            group: ['status']
+        });
+
+        res.render('admin/statistics.html', { barData, pidData });
+    } catch(e) {
+        console.log(e);
+    }
+}
+
+exports.write_tag = async (req, res) => {
+    try {
+        const tag = await models.Tag.findOrCreate({
+            where: {
+                name : req.body.name
+            }
+        });
+
+        const product = await models.Products.findByPk(req.body.product_id);
+        const status = await product.addTag(tag[0]);
+
+        res.json({
+            status : status,
+            tag : tag[0]
+        })
+
+    } catch (e) {
+        res.json(e)
+    }
+}
+
+exports.delete_tag = async (req, res) => {
+    try {
+        const product = await models.Products.findByPk(req.params.product_id);
+        const tag = await models.Tag.findByPk(req.params.tag_id);
+
+        const result = await product.removeTag(tag);
+        
+        res.json({
+            result : result
+        });
+    } catch (e) {
+
+    }
+}

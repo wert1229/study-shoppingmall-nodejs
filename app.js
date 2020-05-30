@@ -33,6 +33,8 @@ class App {
         this.setLocals();
         // 라우팅
         this.getRouting();
+        // 404 페이지를 찾을수가 없음
+        this.status404();
     }
 
     dbConnection() {
@@ -101,6 +103,8 @@ class App {
         this.app.use((req, _, next) => {
             this.app.locals.isLogin = req.isAuthenticated();
             this.app.locals.req_path = req.path;
+            this.app.locals.req_user = req.user;
+            this.app.locals.req_query = req.query;
             
             next();
         });
@@ -108,6 +112,12 @@ class App {
 
     getRouting() {
         this.app.use(require('./controllers'))
+    }
+
+    status404() {        
+        this.app.use((req, res, _ ) => {
+            res.status(404).render('common/404.html')
+        });
     }
 }
 
